@@ -1,26 +1,33 @@
 ;; # Bienvenido
 (ns main
-  (:require [nextjournal.clerk :as clerk]))
+  (:require clojure.set
+            [meta-csv.core :as csv]))
 
 (require '[meta-csv.core :as csv])
 (require '[nextjournal.clerk :as clerk])
 
 
-(def parsed (csv/read-csv "./execution_1_parsed.csv"))
+(defn parse-data [data, origin] (->> data
+                                     (csv/read-csv)
+                                     (map #(sorted-map :id (get % :FunctionId)
+                                                       :duration (get % :FunctionDuration)
+                                                       :delay (get % :InvocationDelay)
+                                                       :origin origin))))
 
-(def data (->> parsed
-               (map #(sorted-map :id (get % :FunctionId)
-                                 :duration (get % :FunctionDuration)
-                                 :delay (get % :InvocationDelay)))))
+(def aws (parse-data "./execution_1_parsed.csv", :aws))
+(def ibm (parse-data "./execution_2_parsed.csv", :ibm))
 
-(clerk/table data)
+(def data (concat aws ibm))
 
 (clerk/vl
  {:data {:values data}
   :width 500
   :height 500
-  :mark {:type "point"}
+  :mark {:type "point"
+         :clip true}
   :encoding {:x {:field :id
-                  :type "quantitative"}
-              :y {:field :duration
-                  :type "quantitative"}}})
+                 :type "quantitative"
+                 :scale {:domain [0 400]}}
+             :y {:field :duration
+                 :type "quantitative"}
+             :color {:field :origin}}})
